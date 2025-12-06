@@ -169,13 +169,13 @@ NAMESPACE_SOUP
     // Load JSON array into the key array
     void loadTartarusMapFromJson(JsonNode* node, Key* map, size_t mapSize)
     {
-        if (node->type != JSON_OBJECT)
+        if (node->getType() != JSON_OBJECT)
             return;
 
         JsonObject* obj = &node->asObj();
         JsonNode* arrNode = obj->find("TartarusProMap");
 
-        if (!arrNode || arrNode->type != JSON_ARRAY) {
+        if (!arrNode || arrNode->getType() != JSON_ARRAY) {
             #if LOGGING
                 std::cout << "\"TartarusProMap\" not found or not an array\n";
                 std::cout << "Using default mapping\n";
@@ -198,22 +198,24 @@ NAMESPACE_SOUP
 
         for (size_t i = 0; i < mapSize; i++) {
             JsonNode* elem = arr->children[i];
-            if (elem->type != JSON_STRING) { //safe_guard
+            if (elem->getType() != JSON_STRING) { //safe_guard
                 #if LOGGING
                     std::cout << "Entry " << i << " is not a string, fallback to KEY_NONE\n";
                 #endif
                 map[i] = KEY_NONE; 
                 continue;
             }
+            std::string keyName = static_cast<JsonString*>(elem)->value;
             #if LOGGING
-                std::string keyName = static_cast<JsonString*>(elem)->value;
                 std::cout << "array " << i << " = " << keyName << "\n";
             #endif
             map[i] = keyFromString(keyName); //map into array
         }
     }
     void loadTartarusJsonFile(std::filesystem::path path){ //Load file and throw into loadTartarusMapFromJson
+        #if LOGGING
         std::cout << "Loading file: " << path << "\n";
+        #endif
 
         auto jsonInput = json::decodeFile(path);
         if (jsonInput)
