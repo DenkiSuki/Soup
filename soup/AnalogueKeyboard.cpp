@@ -7,6 +7,7 @@
 #include "macros.hpp" // COUNT
 #include "MemoryRefReader.hpp"
 #include "NamedMutex.hpp"
+#include "TartarusProKeymap.hpp" //JsonArrayLoader for Tartarus Pro
 #if SOUP_WINDOWS
 #include "Process.hpp"
 #endif
@@ -89,6 +90,13 @@ NAMESPACE_SOUP
 				if (hid.hasReportId(11) && areRazerAnalogueReportsEnabled())
 				{
 					return "Razer Huntsman V3 Pro Mini";
+				}
+			}
+			else if (hid.product_id == 0x0244)
+			{
+				if (hid.hasReportId(6) && areRazerAnalogueReportsEnabled())
+				{
+					return "Razer TartarusPro";
 				}
 			}
 		}
@@ -388,7 +396,7 @@ NAMESPACE_SOUP
 	{
 		switch (scancode)
 		{
-		case 0x6E: return KEY_ESCAPE;
+		case 0x6E: return KEY_ESCAPE; //Razer to Wooting HID Conversion
 		case 0x70: return KEY_F1;
 		case 0x71: return KEY_F2;
 		case 0x72: return KEY_F3;
@@ -610,10 +618,16 @@ NAMESPACE_SOUP
 		return keys;
 	}
 
+	// static const Key tartarusProDefaultKeyMap[20] = {
+	// 	KEY_1, KEY_2, KEY_3, KEY_4, KEY_5,
+	// 	KEY_TAB, KEY_Q, KEY_W, KEY_E, KEY_R,
+	// 	KEY_CAPS_LOCK, KEY_A, KEY_S, KEY_D, KEY_F,
+	// 	KEY_LSHIFT, KEY_Z, KEY_X, KEY_C, KEY_SPACE
+	// };
+
 	std::vector<ActiveKey> AnalogueKeyboard::getActiveKeysRazer()
 	{
 		std::vector<ActiveKey> keys{};
-
 		const Buffer<>& report = hid.receiveReport();
 		SOUP_IF_UNLIKELY (report.empty())
 		{
@@ -653,6 +667,32 @@ NAMESPACE_SOUP
 					}
 				}
 			}
+
+			else if (hid.product_id == 0x0244) //tartarusPro
+			{
+				uint8_t value;
+				size_t index = 0;
+
+				while (r.hasMore() && r.u8(value))
+					{
+						if (index >= 20) break;  // 20 analogkey, 1byte per key, that's mean 20 byte, the remaining 3byte=unknown, maybe padding?
+						
+						const auto sk = tartarusProCurrentMap[index];
+						// if(value){
+						// 	std::cout<<index<< " = " << sk << " = " << static_cast<float>(value) / 255.0f << "\n";
+						// 	}
+						SOUP_IF_LIKELY (sk != KEY_NONE){
+							if(value>0){ //value 0 = inactive
+								keys.emplace_back(ActiveKey{
+									sk,
+									static_cast<float>(value) / 255.0f
+									});
+							}
+						}
+						index++;
+					}
+			}
+
 			else // Huntsman V2, up to 11 keys
 			{
 				uint8_t scancode;
